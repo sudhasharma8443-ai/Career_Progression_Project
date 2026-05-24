@@ -1,133 +1,60 @@
 import streamlit as st
 import pandas as pd
+import os
 from sklearn.cluster import KMeans
-st.title("Career Progression Dashboard")
 
-# Load Dataset
-df = pd.read_csv(
-    "employee_data.csv",
-    encoding="latin1",
-    on_bad_lines="skip"
-)
+st.set_page_config(page_title="Career Progression Dashboard", layout="wide")
+
+st.title("📊 Career Progression Dashboard")
+
+# Safe file path (IMPORTANT FIX)
+file_path = os.path.join(os.path.dirname(__file__), "employee_data.csv")
+
+df = pd.read_csv(file_path, encoding="latin1", on_bad_lines="skip")
+
 # Feature Engineering
+df["PromotionGapRatio"] = df["YearsSinceLastPromotion"] / (df["YearsAtCompany"] + 1)
+df["RoleStagnationIndex"] = df["YearsInCurrentRole"] / (df["YearsAtCompany"] + 1)
+df["TrainingIntensityScore"] = df["YearsAtCompany"] / (df["YearsAtCompany"] + 1)
 
-df["PromotionGapRatio"] = (
-    df["YearsSinceLastPromotion"] /
-    (df["YearsAtCompany"] + 1)
-)
-
-df["RoleStagnationIndex"] = (
-    df["YearsInCurrentRole"] /
-    (df["YearsAtCompany"] + 1)
-)
-
-df["TrainingIntensityScore"] = (
-    df["TrainingTimesLastYear"] /
-    (df["YearsAtCompany"] + 1)
-)
 # Dataset Preview
 st.subheader("Dataset Preview")
 st.write(df.head())
 
-# Dataset Shape
-st.write("Rows and Columns:", df.shape)
-# Show New Features
-st.subheader("Feature Engineered Columns")
+st.subheader("Dataset Shape")
+st.write(df.shape)
 
-st.write(
-    df[[
-        "PromotionGapRatio",
-        "RoleStagnationIndex",
-        "TrainingIntensityScore"
-    ]].head()
-)
-# Department Wise Employees
-
-st.subheader("Department Wise Employee Count")
-
-department_count = df["Department"].value_counts()
-
-st.bar_chart(department_count)
-# KPI Section
-
+# KPIs
 st.subheader("Key Performance Indicators")
 
 col1, col2, col3 = st.columns(3)
 
 col1.metric("Total Employees", len(df))
+col2.metric("Avg Promotion Gap", round(df["PromotionGapRatio"].mean(), 2))
+col3.metric("Avg Training Score", round(df["TrainingIntensityScore"].mean(), 2))
 
-col2.metric(
-    "Average Promotion Gap",
-    round(df["PromotionGapRatio"].mean(), 2)
-)
+# Department wise employees
+st.subheader("Department Wise Employee Count")
+st.bar_chart(df["Department"].value_counts())
 
-col3.metric(
-    "Average Training Score",
-    round(df["TrainingIntensityScore"].mean(), 2)
-)
-# Department Filter
-
+# Filter
 st.subheader("Department Filter")
+dept = st.selectbox("Select Department", df["Department"].unique())
+st.write(df[df["Department"] == dept].head())
 
-department = st.selectbox(
-    "Select Department",
-    df["Department"].unique()
-)
-
-filtered_df = df[df["Department"] == department]
-
-st.write(filtered_df.head())
-# Attrition Analysis
-
+# Attrition
 st.subheader("Attrition Count")
+st.bar_chart(df["Attrition"].value_counts())
 
-attrition_count = df["Attrition"].value_counts()
-
-st.bar_chart(attrition_count)
-# High Promotion Gap Employees
-
-st.subheader("High Promotion Gap Employees")
-
-high_gap = df[df["PromotionGapRatio"] > 0.5]
-
-st.write(
-    high_gap[[
-        "EmployeeNumber",
-        "Department",
-        "JobRole",
-        "PromotionGapRatio"
-    ]].head(10)
-)
-# Career Path Clustering
-
+# Clustering
 st.subheader("Career Path Clustering")
 
-cluster_data = df[[
-    "PromotionGapRatio",
-    "RoleStagnationIndex",
-    "TrainingIntensityScore"
-]]
+cluster_data = df[
+    ["PromotionGapRatio", "RoleStagnationIndex", "TrainingIntensityScore"]
+]
 
-kmeans = KMeans(
-    n_clusters=3,
-    random_state=42
-)
-
+kmeans = KMeans(n_clusters=3, random_state=42)
 df["CareerCluster"] = kmeans.fit_predict(cluster_data)
-
-st.write(
-    df[[
-        "EmployeeNumber",
-        "CareerCluster",
-        "PromotionGapRatio",
-        "RoleStagnationIndex"
-    ]].head(10)
-)
-
-cluster_count = df["CareerCluster"].value_counts()
-
-st.bar_chart(cluster_count)
-# Cluster Labels
 
 cluster_labels = {
     0: "Fast Track Employees",
@@ -137,12 +64,7 @@ cluster_labels = {
 
 df["ClusterLabel"] = df["CareerCluster"].map(cluster_labels)
 
-st.subheader("Cluster Labels")
+st.subheader("Cluster Results")
+st.write(df[["EmployeeNumber", "CareerCluster", "ClusterLabel"]].head(10))
 
-st.write(
-    df[[
-        "EmployeeNumber",
-        "ClusterLabel"
-    ]].head(10)
-)
-st.success("Career Progression Dashboard Loaded Successfully")
+st.success("Dashboard Loaded Successfully 🚀")
